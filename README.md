@@ -8,7 +8,7 @@ daily schedule and retention, exposing the vault and policy IDs.
 
 ```hcl
 module "backup" {
-  source = "github.com/cybercapybara/terraform-azurerm-backup"
+  source = "github.com/moveeeax/terraform-azurerm-backup"
 
   name                = "prod-vault"
   resource_group_name = "prod-rg"
