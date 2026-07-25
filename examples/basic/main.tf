@@ -4,7 +4,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.0"
+      version = ">= 3.0, < 5.0"
     }
   }
 }
@@ -19,6 +19,11 @@ module "backup" {
   name                = "example-vault"
   resource_group_name = "example-rg"
   location            = "eastus"
+
+  # Geo-redundant storage keeps backup data available if the primary region is
+  # lost, and is a prerequisite for cross region restore.
+  storage_mode_type            = "GeoRedundant"
+  cross_region_restore_enabled = true
 
   vm_backup_policy = {
     name                  = "example-daily"
