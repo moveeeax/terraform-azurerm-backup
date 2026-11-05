@@ -8,7 +8,7 @@ daily or weekly schedule and matching retention, exposing the vault and policy I
 
 ```hcl
 module "backup" {
-  source = "github.com/moveeeax/terraform-azurerm-backup"
+  source = "github.com/moveeeax/terraform-azurerm-backup?ref=v1.0.0"
 
   name                = "prod-vault"
   resource_group_name = "prod-rg"
@@ -52,7 +52,7 @@ Runnable examples live in [`examples/basic`](examples/basic) and
 
 | Setting                        | Default          | Why |
 |--------------------------------|------------------|-----|
-| `soft_delete_enabled`          | `true`           | Retains deleted backup items for 14 days. Turning it off removes the only guard against a deletion of the backups themselves. |
+| Soft delete                    | enabled (Azure default) | Retains deleted backup items for 14 days. The module no longer manages it (azurerm 5.0 removed the argument); `soft_delete_enabled = false` is rejected at plan time. |
 | `storage_mode_type`            | `"GeoRedundant"` | Backup data is replicated to the paired region, so a regional failure does not take the backups with it. |
 | `cross_region_restore_enabled` | `false`          | Matches the Azure default. Enable it to restore into the paired region; it requires `storage_mode_type = "GeoRedundant"` and adds cost. |
 
@@ -66,11 +66,13 @@ must land on a half hour.
 | Name      | Version         |
 |-----------|-----------------|
 | terraform | >= 1.5          |
-| azurerm   | >= 3.0, < 5.0   |
+| azurerm   | >= 3.0, < 6.0   |
 
-The azurerm floor is verified against 3.0.0. The upper bound is deliberate:
-azurerm 4.x already reports `soft_delete_enabled` as deprecated and slated for
-removal in 5.0.
+CI validates the module against the 3.0.0 floor and tests it against the latest
+5.x release. azurerm 5.0 removed `soft_delete_enabled` from
+`azurerm_recovery_services_vault`, so the module no longer sets it and soft
+delete stays at the Azure default (enabled). The `soft_delete_enabled` input is
+kept for compatibility but only accepts `true`; 6.x is excluded until tested.
 
 Running the test suite (`terraform test`) additionally needs Terraform >= 1.7
 for `mock_provider`. That is a test-only requirement and does not apply to
@@ -84,7 +86,7 @@ consumers of the module.
 | `resource_group_name`          | Name of the resource group in which to create the vault.         | `string`      | n/a              |   yes    |
 | `location`                     | Azure region in which to create the vault.                       | `string`      | n/a              |   yes    |
 | `sku`                          | SKU of the vault: `Standard` or `RS0`.                           | `string`      | `"Standard"`     |    no    |
-| `soft_delete_enabled`          | Whether soft delete is enabled for the vault.                    | `bool`        | `true`           |    no    |
+| `soft_delete_enabled`          | Deprecated. Only `true` is accepted; soft delete stays enabled.  | `bool`        | `true`           |    no    |
 | `storage_mode_type`            | Storage redundancy: `GeoRedundant`, `LocallyRedundant` or `ZoneRedundant`. | `string` | `"GeoRedundant"` |  no  |
 | `cross_region_restore_enabled` | Whether cross region restore is enabled. Requires `GeoRedundant`.| `bool`        | `false`          |    no    |
 | `vm_backup_policy`             | Optional VM backup policy to create in the vault.                | `object`      | `null`           |    no    |

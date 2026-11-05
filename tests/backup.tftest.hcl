@@ -9,12 +9,17 @@ variables {
   location            = "eastus"
 }
 
-run "vault_defaults_protect_backup_data" {
-  assert {
-    condition     = azurerm_recovery_services_vault.this.soft_delete_enabled == true
-    error_message = "Soft delete must default to enabled; it is the only guard against deletion of backup data."
+run "rejects_disabling_soft_delete" {
+  command = plan
+
+  variables {
+    soft_delete_enabled = false
   }
 
+  expect_failures = [var.soft_delete_enabled]
+}
+
+run "vault_defaults_protect_backup_data" {
   assert {
     condition     = azurerm_recovery_services_vault.this.storage_mode_type == "GeoRedundant"
     error_message = "Vault storage must default to GeoRedundant so backup data survives a regional failure."
