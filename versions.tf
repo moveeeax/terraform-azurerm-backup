@@ -4,11 +4,11 @@ terraform {
   required_providers {
     azurerm = {
       source = "hashicorp/azurerm"
-      # Floor verified against azurerm 3.0.0: soft_delete_enabled,
-      # storage_mode_type and cross_region_restore_enabled are all present.
-      # Upper bound because azurerm 4.x already reports soft_delete_enabled as
-      # deprecated and slated for removal in 5.0, which would break this module.
-      version = ">= 3.0, < 5.0"
+      # Floor verified against azurerm 3.0.0: storage_mode_type and
+      # cross_region_restore_enabled are present. soft_delete_enabled is no
+      # longer set (removed in 5.0), so 3.x, 4.x and 5.x all work.
+      # Ceiling: tested against 5.x; 6.0 has not been vetted.
+      version = ">= 3.0, < 6.0"
     }
   }
 }

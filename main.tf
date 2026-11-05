@@ -3,7 +3,10 @@ resource "azurerm_recovery_services_vault" "this" {
   resource_group_name = var.resource_group_name
   location            = var.location
   sku                 = var.sku
-  soft_delete_enabled = var.soft_delete_enabled
+
+  # soft_delete_enabled is not set: azurerm 5.0 removed the argument, and on
+  # 3.x/4.x leaving it unset keeps the provider default (enabled). See
+  # var.soft_delete_enabled.
 
   storage_mode_type            = var.storage_mode_type
   cross_region_restore_enabled = var.cross_region_restore_enabled

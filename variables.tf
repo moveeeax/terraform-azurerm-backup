@@ -25,9 +25,20 @@ variable "sku" {
 }
 
 variable "soft_delete_enabled" {
-  description = "Whether soft delete is enabled for the vault. Keeping this enabled retains deleted backup items for 14 days and is the primary protection against malicious or accidental deletion of backup data."
+  description = <<-EOT
+    Deprecated, kept so existing callers that pass `true` keep working. azurerm
+    5.0 removed soft_delete_enabled from azurerm_recovery_services_vault, so the
+    module no longer sets it: soft delete stays at the Azure/provider default
+    (enabled, deleted backup items are retained for 14 days). Only true is
+    accepted; disabling soft delete is no longer possible through this module.
+  EOT
   type        = bool
   default     = true
+
+  validation {
+    condition     = var.soft_delete_enabled
+    error_message = "soft_delete_enabled = false is no longer supported: azurerm 5.0 removed the argument. Soft delete stays enabled; disable it in the vault's security settings outside Terraform if you really need to."
+  }
 }
 
 variable "storage_mode_type" {
