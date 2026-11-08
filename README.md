@@ -75,7 +75,8 @@ key to the new one. The values may be IDs of VMs created in the same apply.
 A VM already protected outside this module (for example through
 `azurerm_backup_protected_vm` in the caller) has to be removed from that
 configuration and imported to `module.backup.azurerm_backup_protected_vm.this["<key>"]`
-first, because Azure does not let two protected items back up the same VM.
+first. Otherwise two configurations manage the same protected item and each
+apply undoes the other's changes.
 
 Runnable examples live in [`examples/basic`](examples/basic) and
 [`examples/weekly`](examples/weekly).
