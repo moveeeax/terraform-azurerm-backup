@@ -59,3 +59,22 @@ resource "azurerm_backup_policy_vm" "this" {
     }
   }
 }
+
+# Enrols each VM in the module's VM backup policy. Keyed by the caller's map
+# keys rather than by VM ID, so the keys must be known at plan time while the
+# IDs themselves may come from resources created in the same apply.
+resource "azurerm_backup_protected_vm" "this" {
+  for_each = var.protected_vm_ids
+
+  resource_group_name = var.resource_group_name
+  recovery_vault_name = azurerm_recovery_services_vault.this.name
+  source_vm_id        = each.value
+  backup_policy_id    = one(azurerm_backup_policy_vm.this[*].id)
+
+  lifecycle {
+    precondition {
+      condition     = var.vm_backup_policy != null
+      error_message = "protected_vm_ids requires vm_backup_policy: the VMs are enrolled in the module's VM backup policy."
+    }
+  }
+}

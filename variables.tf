@@ -144,6 +144,20 @@ variable "vm_backup_policy" {
   }
 }
 
+variable "protected_vm_ids" {
+  description = "Map of VMs to enrol in the module's VM backup policy, as key => VM resource ID. Keys are arbitrary labels used in resource addresses and must be known at plan time. Requires vm_backup_policy. Empty enrols nothing."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for id in values(var.protected_vm_ids) :
+      can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Compute/virtualMachines/[^/]+$", id))
+    ])
+    error_message = "protected_vm_ids values must be Azure VM resource IDs: /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Compute/virtualMachines/<name>."
+  }
+}
+
 variable "tags" {
   description = "Map of tags applied to the vault."
   type        = map(string)

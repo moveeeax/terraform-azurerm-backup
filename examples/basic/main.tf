@@ -31,6 +31,12 @@ module "backup" {
     retention_daily_count = 14
   }
 
+  # Each VM is enrolled in the policy above. The keys are labels used in
+  # resource addresses; the values can come from VMs created alongside.
+  protected_vm_ids = {
+    web = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Microsoft.Compute/virtualMachines/example-web"
+  }
+
   tags = {
     Environment = "sandbox"
     ManagedBy   = "terraform"
@@ -39,4 +45,8 @@ module "backup" {
 
 output "vault_id" {
   value = module.backup.vault_id
+}
+
+output "protected_item_ids" {
+  value = module.backup.protected_item_ids
 }
