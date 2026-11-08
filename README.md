@@ -2,7 +2,8 @@
 
 Terraform module that manages [Azure Backup](https://azure.microsoft.com/products/backup).
 It creates a recovery services vault and, optionally, a VM backup policy with a
-daily or weekly schedule and matching retention, exposing the vault and policy IDs.
+daily or weekly schedule and matching retention, enrols VMs in that policy, and
+exposes the vault, policy and protected item IDs.
 
 ## Usage
 
@@ -44,6 +45,37 @@ vm_backup_policy = {
   retention_weekly_count = 12
 }
 ```
+
+## Protecting VMs
+
+`protected_vm_ids` enrols VMs in the module's policy, one
+`azurerm_backup_protected_vm` per entry. It requires `vm_backup_policy`; a map
+without a policy fails at plan time. The default is `{}`, so upgrading the
+module enrols nothing on its own: list every VM that should be backed up.
+
+```hcl
+vm_backup_policy = {
+  name                  = "prod-daily"
+  retention_daily_count = 30
+}
+
+protected_vm_ids = {
+  web = azurerm_linux_virtual_machine.web.id
+  db  = azurerm_linux_virtual_machine.db.id
+}
+```
+
+The keys are labels that end up in resource addresses
+(`azurerm_backup_protected_vm.this["web"]`), so they must be known at plan time
+and should stay stable: renaming a key destroys the protected item (which stops
+protection for that VM) and creates it again, unless a `moved` block maps the old
+key to the new one. The values may be IDs of VMs created in the same apply.
+`protected_item_ids` returns the protected item IDs under the same keys.
+
+A VM already protected outside this module (for example through
+`azurerm_backup_protected_vm` in the caller) has to be removed from that
+configuration and imported to `module.backup.azurerm_backup_protected_vm.this["<key>"]`
+first, because Azure does not let two protected items back up the same VM.
 
 Runnable examples live in [`examples/basic`](examples/basic) and
 [`examples/weekly`](examples/weekly).
@@ -90,6 +122,7 @@ consumers of the module.
 | `storage_mode_type`            | Storage redundancy: `GeoRedundant`, `LocallyRedundant` or `ZoneRedundant`. | `string` | `"GeoRedundant"` |  no  |
 | `cross_region_restore_enabled` | Whether cross region restore is enabled. Requires `GeoRedundant`.| `bool`        | `false`          |    no    |
 | `vm_backup_policy`             | Optional VM backup policy to create in the vault.                | `object`      | `null`           |    no    |
+| `protected_vm_ids`             | VMs to enrol in the VM backup policy, as key => VM ID. Requires `vm_backup_policy`. | `map(string)` | `{}` | no |
 | `tags`                         | Map of tags applied to the vault.                                | `map(string)` | `{}`             |    no    |
 
 ### `vm_backup_policy` object
@@ -112,6 +145,7 @@ consumers of the module.
 | `vault_id`            | ID of the recovery services vault.             |
 | `vault_name`          | Name of the recovery services vault.           |
 | `vm_backup_policy_id` | ID of the VM backup policy, if one was created.|
+| `protected_item_ids`  | Map of protected item IDs, keyed like `protected_vm_ids`. |
 
 ## Development
 

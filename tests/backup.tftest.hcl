@@ -1,7 +1,15 @@
 # Test-only requirement: `mock_provider` needs Terraform >= 1.7 (or OpenTofu >= 1.7).
 # The module itself still supports terraform >= 1.5 -- do not raise required_version
 # in versions.tf on account of these tests.
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  # azurerm_backup_protected_vm parses backup_policy_id at plan time, so the
+  # mocked policy needs a well-formed ID rather than a random string.
+  mock_resource "azurerm_backup_policy_vm" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/test-rg/providers/Microsoft.RecoveryServices/vaults/test-vault/backupPolicies/test-policy"
+    }
+  }
+}
 
 variables {
   name                = "test-vault"
@@ -28,6 +36,11 @@ run "vault_defaults_protect_backup_data" {
   assert {
     condition     = length(azurerm_backup_policy_vm.this) == 0
     error_message = "No backup policy should be created when vm_backup_policy is null."
+  }
+
+  assert {
+    condition     = length(azurerm_backup_protected_vm.this) == 0
+    error_message = "No VM may be enrolled by default."
   }
 }
 
@@ -201,4 +214,93 @@ run "rejects_cross_region_restore_without_geo_redundant_storage" {
   }
 
   expect_failures = [azurerm_recovery_services_vault.this]
+}
+
+run "defaults_enrol_no_vms" {
+  command = plan
+
+  variables {
+    vm_backup_policy = {
+      name = "test-daily"
+    }
+  }
+
+  assert {
+    condition     = length(azurerm_backup_protected_vm.this) == 0
+    error_message = "No VM may be enrolled unless protected_vm_ids is set."
+  }
+
+  assert {
+    condition     = output.protected_item_ids == {}
+    error_message = "protected_item_ids must be empty when no VM is enrolled."
+  }
+}
+
+run "protected_vms_use_the_module_policy" {
+  variables {
+    vm_backup_policy = {
+      name = "test-daily"
+    }
+
+    protected_vm_ids = {
+      web = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/web-01"
+      db  = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/db-01"
+    }
+  }
+
+  assert {
+    condition     = length(azurerm_backup_protected_vm.this) == 2
+    error_message = "Every entry in protected_vm_ids must be enrolled."
+  }
+
+  assert {
+    condition     = azurerm_backup_protected_vm.this["web"].source_vm_id == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/web-01"
+    error_message = "source_vm_id must come from protected_vm_ids."
+  }
+
+  assert {
+    condition = alltrue([
+      for item in azurerm_backup_protected_vm.this :
+      item.backup_policy_id == azurerm_backup_policy_vm.this[0].id
+    ])
+    error_message = "Enrolled VMs must use the module's VM backup policy."
+  }
+
+  assert {
+    condition     = azurerm_backup_protected_vm.this["db"].recovery_vault_name == "test-vault"
+    error_message = "Enrolled VMs must live in the module's vault."
+  }
+
+  assert {
+    condition     = keys(output.protected_item_ids) == ["db", "web"]
+    error_message = "protected_item_ids must be keyed like protected_vm_ids."
+  }
+}
+
+run "rejects_protected_vms_without_a_policy" {
+  command = plan
+
+  variables {
+    protected_vm_ids = {
+      web = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/web-01"
+    }
+  }
+
+  expect_failures = [azurerm_backup_protected_vm.this]
+}
+
+run "rejects_protected_vm_id_that_is_not_a_vm" {
+  command = plan
+
+  variables {
+    vm_backup_policy = {
+      name = "test-daily"
+    }
+
+    protected_vm_ids = {
+      web = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/test-rg/providers/Microsoft.Compute/disks/web-01-os"
+    }
+  }
+
+  expect_failures = [var.protected_vm_ids]
 }
